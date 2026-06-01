@@ -1,0 +1,52 @@
+enable
+configure terminal
+# Dok 4 / Модули 2-3 без задания 3.3 / HQ-RTR
+# Задание 3.3 IPSec намеренно пропущено. GRE/OSPF из модуля 1 остается рабочим.
+security none
+ntp server 172.16.70.1
+# Static NAT / port forwarding
+ip nat source static tcp 192.168.1.10 80 172.16.70.2 8080
+ip nat source static tcp 192.168.1.10 2014 172.16.70.2 2014
+ip nat source static tcp 192.168.1.10 2026 172.16.70.2 2026
+ip nat source static tcp 192.168.1.10 8000 172.16.70.2 8000
+# Firewall toward ISP. Разрешены необходимые протоколы; остальное из Internet во внутренние сети блокируется.
+filter-map ipv4 FMAP_INET 10
+ match ospf any any
+ match icmp any any
+ match gre any any
+ match udp any any eq 123
+ match tcp any any eq 80
+ match tcp any any eq 443
+ match tcp any any eq 8080
+ match tcp any any eq 8000
+ match tcp any any eq dns
+ match udp any any eq dns
+ match tcp any any eq 2014
+ match tcp any any eq 2026
+ set accept
+exit
+filter-map ipv4 FMAP_INET 20
+ match tcp any any eq 88
+ match udp any any eq 88
+ match udp any any eq 464
+ match udp any any range 137 138
+ match tcp any any eq 135
+ match tcp any any eq 139
+ match tcp any any eq 445
+ match tcp any any eq 636
+ match tcp any any range 3268 3269
+ match tcp any any gt 49152
+ match udp any any range 32768 60999
+ match tcp any any eq 10050
+ match udp any any eq 10050
+ set accept
+exit
+filter-map ipv4 FMAP_INET 99
+ match any any any
+ set drop
+exit
+interface int0
+ set filter-map in FMAP_INET 10
+exit
+rsyslog host 192.168.1.10
+# Сохранение конфигурации выполните вручную: write/save/commit/copy running-config startup-config.
